@@ -1,22 +1,36 @@
 use crate::ui::types::*;
-use indexmap::map::IndexMap;
-use rust_yaml::{Value, Yaml};
+use hashlink::linked_hash_map::LinkedHashMap;
 use std::collections::HashMap;
+use yaml_rust2::YamlLoader;
+use yaml_rust2::yaml::Yaml;
 
-type ValueMap = IndexMap<Value, Value>;
+type ValueMap = LinkedHashMap<Yaml, Yaml>;
 
-impl From<rust_yaml::Error> for Error {
-    fn from(err: rust_yaml::Error) -> Error {
+trait GetStr {
+    fn get_str(&self, s: &str) -> Option<&Yaml>;
+}
+
+impl GetStr for Yaml {
+    fn get_str(&self, s: &str) -> Option<&Yaml> {
+        let map = self.as_hash()?;
+        map.get(&Yaml::String(s.to_string()))
+    }
+}
+
+impl From<yaml_rust2::ScanError> for Error {
+    fn from(err: yaml_rust2::ScanError) -> Error {
         Error(err.to_string())
     }
 }
 
+type Value = Yaml;
+
 #[derive(Debug, Clone)]
-pub struct Error(String);
+pub struct Error(pub String);
 
 pub fn parse_config(input: &str) -> Result<UiConfig, Error> {
-    let parsed = Yaml::new().load_str(input)?;
-    UiConfig::try_from(parsed)
+    let parsed = YamlLoader::load_from_str(input)?;
+    UiConfig::try_from(parsed[0].clone())
 }
 
 impl TryFrom<Value> for UiConfig {
@@ -24,10 +38,11 @@ impl TryFrom<Value> for UiConfig {
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         let map = get_value_map(&value, missing_fields("UI config", "ui"))?;
-        let config = parse_field("config", &map, "UI config")?;
-        let state = parse_field("state", &map, "UI config")?;
+        let config = parse_field_or_default("config", &map, "UI config");
+        let state = parse_field_or_default("state", &map, "UI config");
         let ui = parse_field("ui", &map, "UI config")?;
-        let csound = parse_field("csound", &map, "UI config")?;
+        println!("{:#?}", &map);
+        let csound = parse_field_or_default("csound", &map, "UI config");
         Ok(UiConfig {
             config,
             state,
@@ -63,8 +78,8 @@ impl TryFrom<Value> for Float {
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         match value {
-            Value::Float(f) => Ok(Float(f as f32)),
-            Value::Int(n) => Ok(Float(n as f32)),
+            Yaml::Real(f) => Ok(Float(f.parse::<f32>().unwrap())),
+            Yaml::Integer(n) => Ok(Float(n as f32)),
             _ => Err(Error("Expected a number".to_string())),
         }
     }
@@ -116,7 +131,7 @@ impl TryFrom<Value> for Ui {
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         let map = get_value_map(&value, no_object("init"))?;
         let scale = get_scale(&value);
-        let style = parse_field_or_default("style", &map, "UI widget");
+        let style = parse_field("style", &map, "UI widget").ok();
         if has_key(&map, "hor") {
             let values = value.get_str("hor").unwrap();
             let item = parse_ui_items(values)?;
@@ -143,7 +158,7 @@ impl TryFrom<Value> for PrimUi {
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         let map = value
-            .as_mapping()
+            .as_hash()
             .ok_or_else(|| Error("Not a map".to_string()))?;
         if has_key(map, "knob") {
             parse_knob(&value)
@@ -208,7 +223,7 @@ fn parse_select_items(value: &Value) -> Result<Vec<String>, Error> {
         .get_str("text")
         .ok_or(missing_fields("select", "text"))?;
     let err = Error("Select text field is not a sequence of names".to_string());
-    let items = values.as_sequence().ok_or(err.clone())?;
+    let items = values.as_vec().ok_or(err.clone())?;
     items
         .iter()
         .map(|x| x.as_str().map(|x| x.to_string()).ok_or(err.clone()))
@@ -223,17 +238,16 @@ fn parse_toggle(value: &Value) -> Result<PrimUi, Error> {
 
 fn parse_label(value: &Value) -> Result<PrimUi, Error> {
     let text = get_text(value);
-    let map = get_value_map(&value, no_object("label"))?;
+    let map = get_value_map(value, no_object("label"))?;
     let size = parse_field_or("size", &map, "label", Float(10.0));
     Ok(PrimUi::Label { text, size })
 }
 
-fn parse_space(value: &Value) -> Result<PrimUi, Error> {
+fn parse_space(_value: &Value) -> Result<PrimUi, Error> {
     Ok(PrimUi::Space)
 }
 
 fn parse_image(value: &Value) -> Result<PrimUi, Error> {
-    let map = get_value_map(&value, no_object("image"))?;
     let file_value = value
         .get_str("file")
         .ok_or(missing_fields("image", "file"))?;
@@ -247,7 +261,7 @@ fn parse_image(value: &Value) -> Result<PrimUi, Error> {
 
 fn parse_ui_items(value: &Value) -> Result<Vec<Layout<PrimUi>>, Error> {
     let values = value
-        .as_sequence()
+        .as_vec()
         .ok_or_else(|| Error("expected a sequence".to_string()))?;
     values.iter().map(|x| Ui::try_from(x.clone())).collect()
 }
@@ -256,11 +270,11 @@ fn has_key(map: &ValueMap, name: &str) -> bool {
     map.contains_key(&Value::String(name.to_string()))
 }
 
-fn get_scale(value: &Value) -> Float {
+fn get_scale(value: &Value) -> Option<Float> {
     if let Some(num) = value.get_str("scale") {
-        Float::try_from(num.clone()).unwrap_or(Float(1.0))
+        Float::try_from(num.clone()).ok()
     } else {
-        Float(1.0)
+        None
     }
 }
 
@@ -268,7 +282,7 @@ impl TryFrom<Value> for Csound {
     type Error = Error;
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
-        let map = get_value_map(&value, no_object("init"))?;
+        let map = get_value_map(&value, no_object("csound"))?;
         let write: VecChannel = parse_field_or_default("write", &map, "csound");
         let read: VecChannel = parse_field_or_default("read", &map, "csound");
         Ok(Csound {
@@ -283,13 +297,8 @@ impl TryFrom<Value> for Style {
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         let map = get_value_map(&value, no_object("init"))?;
-        let color = parse_field_or("color", &map, "style", DEFAULT_COLOR.clone());
-        let background = parse_field_or(
-            "background",
-            &map,
-            "style",
-            DEFAULT_BACKGROUND_COLOR.clone(),
-        );
+        let color = parse_field("color", &map, "style").ok();
+        let background = parse_field("background", &map, "style").ok();
         let pad = parse_field("pad", &map, "style").ok();
         Ok(Style {
             color,
@@ -345,20 +354,8 @@ impl TryFrom<Value> for Col {
 }
 
 fn is_hash_col(s: &str) -> bool {
-    s.chars().next() == Some('#')
+    s.starts_with('#')
 }
-
-static DEFAULT_COLOR: Col = Col::Rgb {
-    r: Float(0.0),
-    g: Float(0.0),
-    b: Float(0.0),
-};
-
-static DEFAULT_BACKGROUND_COLOR: Col = Col::Rgb {
-    r: Float(255.0),
-    g: Float(255.0),
-    b: Float(255.0),
-};
 
 #[derive(Default)]
 struct VecChannel(pub Vec<Channel>);
@@ -368,7 +365,7 @@ impl TryFrom<Value> for VecChannel {
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         let items = value
-            .as_sequence()
+            .as_vec()
             .ok_or_else(|| Error("Not a sequence".to_string()))?;
         Ok(VecChannel(
             items
@@ -381,7 +378,7 @@ impl TryFrom<Value> for VecChannel {
 
 fn parse_field<T: TryFrom<Value, Error = Error>>(
     field_name: &str,
-    map: &IndexMap<Value, Value>,
+    map: &ValueMap,
     type_name: &str,
 ) -> Result<T, Error> {
     let value = map
@@ -392,7 +389,7 @@ fn parse_field<T: TryFrom<Value, Error = Error>>(
 
 fn parse_field_or_default<T: TryFrom<Value, Error = Error> + Default>(
     field_name: &str,
-    map: &IndexMap<Value, Value>,
+    map: &ValueMap,
     type_name: &str,
 ) -> T {
     parse_field(field_name, map, type_name).unwrap_or_default()
@@ -400,7 +397,7 @@ fn parse_field_or_default<T: TryFrom<Value, Error = Error> + Default>(
 
 fn parse_field_or<T: TryFrom<Value, Error = Error>>(
     field_name: &str,
-    map: &IndexMap<Value, Value>,
+    map: &ValueMap,
     type_name: &str,
     def_value: T,
 ) -> T {
@@ -419,8 +416,8 @@ fn no_object(item: &str) -> Error {
     Error(format!("{} should be object", item))
 }
 
-fn get_value_map(value: &Value, msg: Error) -> Result<IndexMap<Value, Value>, Error> {
-    if let Value::Mapping(map) = value {
+fn get_value_map(value: &Value, msg: Error) -> Result<ValueMap, Error> {
+    if let Yaml::Hash(map) = value {
         Ok(map.clone())
     } else {
         Err(msg)

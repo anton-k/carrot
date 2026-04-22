@@ -13,7 +13,7 @@ pub struct UiConfig {
     pub ui: Ui,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Config {
     pub size: Size,
 }
@@ -33,18 +33,18 @@ impl Default for Size {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Csound {
     pub write: Vec<Channel>,
     pub read: Vec<Channel>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct State {
     pub init: Init,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Init {
     pub values: HashMap<Channel, Float>,
 }
@@ -52,8 +52,8 @@ pub struct Init {
 #[derive(Debug, Clone)]
 pub struct Widget<T> {
     pub item: T,
-    pub style: Style,
-    pub scale: Float,
+    pub style: Option<Style>,
+    pub scale: Option<Float>,
 }
 
 #[derive(Debug, Clone)]
@@ -71,24 +71,16 @@ pub enum Col {
 }
 #[derive(Debug, Clone)]
 pub struct Style {
-    pub color: Col,
-    pub background: Col,
+    pub color: Option<Col>,
+    pub background: Option<Col>,
     pub pad: Option<Pad>,
 }
 
 impl Default for Style {
     fn default() -> Self {
         Style {
-            color: Col::Rgb {
-                r: Float(0.0),
-                g: Float(0.0),
-                b: Float(0.0),
-            },
-            background: Col::Rgb {
-                r: Float(255.0),
-                g: Float(255.0),
-                b: Float(255.0),
-            },
+            color: None,
+            background: None,
             pad: None,
         }
     }

@@ -4,7 +4,7 @@ build:
 	cargo build
 
 run:
-	cargo run --release
+	cargo run --release -- examples/config/toggle.yaml
 
 test:
 	cargo test
