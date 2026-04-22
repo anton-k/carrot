@@ -1,104 +1,123 @@
+use std::collections::HashMap;
+
 pub type Ui = Layout<PrimUi>;
 
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+pub struct Float(pub f32);
+
 #[derive(Debug, Clone)]
-pub struct Scale<T> {
-    scale: f32,
-    value: T,
+pub struct UiConfig {
+    pub config: Config,
+    pub state: State,
+    pub csound: Csound,
+    pub ui: Ui,
+}
+
+#[derive(Debug, Clone)]
+pub struct Config {
+    pub size: Size,
+}
+
+#[derive(Debug, Clone)]
+pub struct Size {
+    pub width: Float,
+    pub height: Float,
+}
+
+impl Default for Size {
+    fn default() -> Size {
+        Size {
+            width: Float(100.0),
+            height: Float(100.0),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Csound {
+    pub write: Vec<Channel>,
+    pub read: Vec<Channel>,
+}
+
+#[derive(Debug, Clone)]
+pub struct State {
+    pub init: Init,
+}
+
+#[derive(Debug, Clone)]
+pub struct Init {
+    pub values: HashMap<Channel, Float>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Widget<T> {
+    pub item: T,
+    pub style: Style,
+    pub scale: Float,
 }
 
 #[derive(Debug, Clone)]
 pub enum Layout<T> {
-    Hor { items: Vec<Scale<Layout<T>>> },
-    Ver { items: Vec<Scale<Layout<T>>> },
-    Group { items: Box<Layout<T>>, style: Style },
-    Prim { value: T },
+    Hor { items: Widget<Vec<Layout<T>>> },
+    Ver { items: Widget<Vec<Layout<T>>> },
+    Prim { value: Widget<T> },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Col {
-    pub r: u8,
-    pub g: u8,
-    pub b: u8,
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+pub enum Col {
+    Rgb { r: Float, g: Float, b: Float },
+    Hash { hash: String },
+    Name { name: String },
 }
-
 #[derive(Debug, Clone)]
 pub struct Style {
-    color: Col,
-    background: Col,
-    pad: Pad,
+    pub color: Col,
+    pub background: Col,
+    pub pad: Option<Pad>,
+}
+
+impl Default for Style {
+    fn default() -> Self {
+        Style {
+            color: Col::Rgb {
+                r: Float(0.0),
+                g: Float(0.0),
+                b: Float(0.0),
+            },
+            background: Col::Rgb {
+                r: Float(255.0),
+                g: Float(255.0),
+                b: Float(255.0),
+            },
+            pad: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct Pad {
-    left: f32,
-    right: f32,
-    bottom: f32,
-    top: f32,
+    pub left: Float,
+    pub right: Float,
+    pub bottom: Float,
+    pub top: Float,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Channel(String);
+pub struct Channel(pub String);
 
 #[derive(Debug, Clone)]
 pub enum PrimUi {
-    Knob {
-        channel: Channel,
-        range: (f64, f64),
-        value: f64,
-        style: Style,
-    },
-    Slider {
-        channel: Channel,
-        range: (f64, f64),
-        value: f64,
-        style: Style,
-    },
-    Text {
-        value: String,
-        size: f32,
-        style: Style,
-    },
-    Button {
-        channel: Channel,
-        label: String,
-        style: Style,
-    },
-    Toggle {
-        channel: Channel,
-        label: String,
-        value: bool,
-        style: Style,
-    },
-    Select {
-        labels: Vec<String>,
-        style: Style,
-        value: u16,
-    },
+    Knob { channel: Channel },
+    Slider { channel: Channel },
+    Label { text: String, size: Float },
+    Button { channel: Channel, text: String },
+    Toggle { channel: Channel, text: String },
+    Select { channel: Channel, text: Vec<String> },
     Space,
+    Image { file: String },
     /*
-
-    Image {
-        file: String,
-        style: Style,
-    },
     XYPad {
         channel: (Channel, Channel),
-        range: ((f64, f64), (f64, f64)),
-        value: (f64, f64),
-        style: Style,
     },
     */
-}
-
-pub struct Error(String);
-
-pub fn parse_ui() -> Result<Ui, Error> {
-    Ok(Layout::Hor {
-        items: vec![Scale {
-            scale: 1.0,
-            value: Layout::Prim {
-                value: PrimUi::Space,
-            },
-        }],
-    })
 }
