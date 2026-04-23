@@ -82,7 +82,7 @@ fn add_widget(
         PrimUi::Toggle { channel, text: _ } => todo!(),
         PrimUi::Select { channel, text: _ } => todo!(),
         PrimUi::Label { text, size: _ } => add_label(ui, &rect, text),
-        PrimUi::Image { file } => todo!(),
+        PrimUi::Image { file: _ } => todo!(), // add_image(ui, &rect, file),
     }
 }
 
@@ -104,7 +104,11 @@ fn add_button(ui: &mut egui::Ui, rect: &egui::Rect, text: &str) {
 fn add_label(ui: &mut egui::Ui, rect: &egui::Rect, text: &str) {
     ui.put(*rect, egui::Label::new(text));
 }
-
+/*
+fn add_image(ui: &mut egui::Ui, rect: &egui::Rect, file: &str) {
+    ui.put(*rect, egui::Image::new(egui::include_image!(file)));
+}
+*/
 fn add_knob(
     channels: &mut ChannelMap,
     ui: &mut egui::Ui,
@@ -112,14 +116,16 @@ fn add_knob(
     channel: &Channel,
     _text: &str,
 ) {
+    let size = rect.size();
     let knob = Knob::new(
         channels.get_mut(channel),
         0.0,
         1.0,
         KnobStyle::Wiper,
     )
-    .with_size(50.0)
+    .with_size(0.8 * size.x.min(size.y))
     .with_font_size(14.0)
+    .with_sweep_range(0.1, 0.8)
     .with_colors(
         egui::Color32::GRAY,
         egui::Color32::WHITE,

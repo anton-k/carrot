@@ -25,5 +25,5 @@ ui:
       text: Hi there
     - hor:
         - knob: sdf
-        - slider: on2
-        - button: off2
+        - knob: on2
+        - knob: off2
