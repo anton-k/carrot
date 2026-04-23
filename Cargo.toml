@@ -4,5 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+eframe = "0.34.1"
+egui = "0.34.1"
+egui_knob = "0.3.11"
 hashlink = "0.11.0"
 yaml-rust2 = "0.11.0"
