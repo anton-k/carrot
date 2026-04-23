@@ -150,13 +150,18 @@ fn add_slider(
 ) {
     let size = rect.size();
     let slider = if size.x > size.y {
-        ui.spacing_mut().slider_width = size.x;
-        egui::Slider::new(channels.get_mut(channel), 0.0..=1.0)
+        ui.spacing_mut().slider_width = 0.9 * size.x;
+        egui::Slider::new(channels.get_mut(channel), 0.0..=1.0).show_value(false)
     } else {
-        ui.spacing_mut().slider_width = size.y;
-        egui::Slider::new(channels.get_mut(channel), 0.0..=1.0).vertical()
+        ui.spacing_mut().slider_width = 0.9 * size.y;
+        egui::Slider::new(channels.get_mut(channel), 0.0..=1.0)
+            .vertical()
+            .show_value(false)
     };
-    let response = ui.put(*rect, slider);
+    let mut rect_pad = *rect;
+    rect_pad.min.x += size.x * 0.05;
+    rect_pad.min.y += size.y * 0.05;
+    let response = ui.put(rect_pad, slider);
     if response.clicked() {
         println!("Clicked!");
     };
