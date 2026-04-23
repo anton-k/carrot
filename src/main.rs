@@ -78,11 +78,11 @@ fn add_widget(
 
         PrimUi::Button { channel, text } => add_button(ui, &rect, &get_button_name(channel, text)),
         PrimUi::Knob { channel } => add_knob(channels, ui, &rect, channel, &channel.0),
-        PrimUi::Slider { channel } => add_button(ui, &rect, &channel.0),
-        PrimUi::Toggle { channel, text: _ } => add_button(ui, &rect, &channel.0),
-        PrimUi::Select { channel, text: _ } => add_button(ui, &rect, &channel.0),
-        PrimUi::Label { text, size: _ } => add_button(ui, &rect, text),
-        PrimUi::Image { file } => add_button(ui, &rect, file),
+        PrimUi::Slider { channel } => add_slider(channels, ui, &rect, channel, &channel.0),
+        PrimUi::Toggle { channel, text: _ } => todo!(),
+        PrimUi::Select { channel, text: _ } => todo!(),
+        PrimUi::Label { text, size: _ } => add_label(ui, &rect, text),
+        PrimUi::Image { file } => todo!(),
     }
 }
 
@@ -99,6 +99,10 @@ fn add_button(ui: &mut egui::Ui, rect: &egui::Rect, text: &str) {
     if response.clicked() {
         println!("Clicked!");
     }
+}
+
+fn add_label(ui: &mut egui::Ui, rect: &egui::Rect, text: &str) {
+    ui.put(*rect, egui::Label::new(text));
 }
 
 fn add_knob(
@@ -126,6 +130,27 @@ fn add_knob(
     ;
 
     let response = ui.put(*rect, knob);
+    if response.clicked() {
+        println!("Clicked!");
+    };
+}
+
+fn add_slider(
+    channels: &mut ChannelMap,
+    ui: &mut egui::Ui,
+    rect: &egui::Rect,
+    channel: &Channel,
+    _text: &str,
+) {
+    let size = rect.size();
+    let slider = if size.x > size.y {
+        ui.spacing_mut().slider_width = size.x;
+        egui::Slider::new(channels.get_mut(channel), 0.0..=1.0)
+    } else {
+        ui.spacing_mut().slider_width = size.y;
+        egui::Slider::new(channels.get_mut(channel), 0.0..=1.0).vertical()
+    };
+    let response = ui.put(*rect, slider);
     if response.clicked() {
         println!("Clicked!");
     };

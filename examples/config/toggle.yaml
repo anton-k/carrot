@@ -14,14 +14,16 @@ state:
       foo: 0
 ui:
   ver:
-    - toggle: foo
+    - slider: foo
     - hor:
         - button: on
         - button: off
           scale: 2
     - space: []
       scale: 0.5
+    - label: sd
+      text: Hi there
     - hor:
         - knob: sdf
-        - button: on2
+        - slider: on2
         - button: off2
