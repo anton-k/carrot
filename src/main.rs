@@ -11,8 +11,16 @@ use std::env;
 use std::fs;
 
 struct CarrotApp {
-    pub channels: HashMap<Channel, f32>,
+    pub channels: ChannelMap,
     pub prims: Vec<WidgetRect<PrimUi>>,
+}
+
+struct ChannelMap(pub HashMap<Channel, f32>);
+
+impl ChannelMap {
+    pub fn get_mut(&mut self, channel: &Channel) -> &mut f32 {
+        self.0.get_mut(channel).unwrap()
+    }
 }
 
 impl CarrotApp {
@@ -21,13 +29,9 @@ impl CarrotApp {
         println!("{:#?}", &ui_with_rect);
         let ui_state = get_ui_state(&ui_with_rect);
         Self {
-            channels: ui_state.channels,
+            channels: ChannelMap(ui_state.channels),
             prims: ui_state.prims,
         }
-    }
-
-    fn get_channel_ref(&mut self, channel: &Channel) -> Option<&mut f32> {
-        self.channels.get_mut(channel)
     }
 }
 
@@ -60,7 +64,7 @@ impl eframe::App for CarrotApp {
 }
 
 fn add_widget(
-    channels: &mut HashMap<Channel, f32>,
+    channels: &mut ChannelMap,
     ui: &mut egui::Ui,
     size: &egui::Vec2,
     widget_rect: &Rect,
@@ -72,15 +76,13 @@ fn add_widget(
     match prim {
         PrimUi::Space => {}
 
-        PrimUi::Button { channel, text } => {
-            add_button(ui, &rect, &get_button_name(&channel, &text))
-        }
+        PrimUi::Button { channel, text } => add_button(ui, &rect, &get_button_name(channel, text)),
         PrimUi::Knob { channel } => add_knob(channels, ui, &rect, channel, &channel.0),
         PrimUi::Slider { channel } => add_button(ui, &rect, &channel.0),
         PrimUi::Toggle { channel, text: _ } => add_button(ui, &rect, &channel.0),
         PrimUi::Select { channel, text: _ } => add_button(ui, &rect, &channel.0),
-        PrimUi::Label { text, size: _ } => add_button(ui, &rect, &text),
-        PrimUi::Image { file } => add_button(ui, &rect, &file),
+        PrimUi::Label { text, size: _ } => add_button(ui, &rect, text),
+        PrimUi::Image { file } => add_button(ui, &rect, file),
     }
 }
 
@@ -100,14 +102,14 @@ fn add_button(ui: &mut egui::Ui, rect: &egui::Rect, text: &str) {
 }
 
 fn add_knob(
-    channels: &mut HashMap<Channel, f32>,
+    channels: &mut ChannelMap,
     ui: &mut egui::Ui,
     rect: &egui::Rect,
     channel: &Channel,
     _text: &str,
 ) {
     let knob = Knob::new(
-        channels.get_mut(channel).unwrap(),
+        channels.get_mut(channel),
         0.0,
         1.0,
         KnobStyle::Wiper,
