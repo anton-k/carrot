@@ -1,7 +1,7 @@
 config:
   size:
-    width: 400
-    height: 400
+    width: 500
+    height: 500
 state:
   init:
     foo!: 0
@@ -15,9 +15,13 @@ state:
 ui:
   ver:
     - toggle: foo
-      style:
-        color: olive
-        secondary-color: blue
     - hor:
         - button: on
         - button: off
+          scale: 2
+    - space: []
+      scale: 0.5
+    - hor:
+        - knob: sdf
+        - button: on2
+        - button: off2

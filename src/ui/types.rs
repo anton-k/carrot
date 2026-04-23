@@ -1,10 +1,10 @@
 use core::f32;
-use std::collections::{HashMap, hash_map::IntoValues};
+use std::collections::HashMap;
 
 pub type Ui = Layout<PrimUi>;
 pub type UiRect = LayoutRect<PrimUi>;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Float(pub f32);
 
 #[derive(Debug, Clone)]
@@ -65,12 +65,23 @@ pub struct WidgetRect<T> {
     pub style: Option<Style>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Rect {
     pub x: Float,
     pub y: Float,
     pub width: Float,
     pub height: Float,
+}
+
+impl Rect {
+    pub fn unit() -> Self {
+        Rect {
+            x: Float(0.0),
+            y: Float(0.0),
+            width: Float(1.0),
+            height: Float(1.0),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -99,21 +110,11 @@ pub enum Col {
     Hash { hash: String },
     Name { name: String },
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Style {
     pub color: Option<Col>,
     pub background: Option<Col>,
     pub pad: Option<Pad>,
-}
-
-impl Default for Style {
-    fn default() -> Self {
-        Style {
-            color: None,
-            background: None,
-            pad: None,
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -166,6 +167,15 @@ pub fn get_ui_rect(root: &Rect, ui: &Ui) -> UiRect {
     }
 }
 
+pub fn get_root_rect(config: &UiConfig) -> Rect {
+    Rect {
+        x: Float(0.0),
+        y: Float(0.0),
+        width: config.config.size.width,
+        height: config.config.size.height,
+    }
+}
+
 enum Direction {
     Hor,
     Ver,
@@ -181,36 +191,36 @@ fn direct_cons(direction: &Direction, items: WidgetRect<Vec<UiRect>>) -> UiRect 
 fn direct_split_rect(direction: &Direction, root: &Rect, proportions: &[Float]) -> Vec<Rect> {
     match direction {
         Direction::Hor => {
-            let segments = split_line(&root.width, proportions);
+            let segments = split_line(&root.x, &root.width, proportions);
             segments
                 .iter()
                 .map(|(segment_start, segment_width)| Rect {
-                    x: segment_start.clone(),
-                    width: segment_width.clone(),
-                    y: root.y.clone(),
-                    height: root.height.clone(),
+                    x: *segment_start,
+                    width: *segment_width,
+                    y: root.y,
+                    height: root.height,
                 })
                 .collect()
         }
         Direction::Ver => {
-            let segments = split_line(&root.height, proportions);
+            let segments = split_line(&root.y, &root.height, proportions);
             segments
                 .iter()
                 .map(|(segment_start, segment_height)| Rect {
-                    y: segment_start.clone(),
-                    height: segment_height.clone(),
-                    x: root.x.clone(),
-                    width: root.width.clone(),
+                    y: *segment_start,
+                    height: *segment_height,
+                    x: root.x,
+                    width: root.width,
                 })
                 .collect()
         }
     }
 }
 
-fn split_line(length: &Float, proportions: &[Float]) -> Vec<(Float, Float)> {
+fn split_line(start: &Float, length: &Float, proportions: &[Float]) -> Vec<(Float, Float)> {
     proportions
         .iter()
-        .scan(0.0, |state, x| {
+        .scan(start.0, |state, x| {
             let segment_length = length.0 * x.0;
             let res = (Float(*state), Float(segment_length));
             *state += segment_length;
@@ -240,9 +250,9 @@ fn prim_rect(rect: &Rect, item: &Widget<PrimUi>) -> WidgetRect<PrimUi> {
 
 fn get_scale(item: &Ui) -> Float {
     match item {
-        Layout::Hor { items } => items.scale.clone(),
-        Layout::Ver { items } => items.scale.clone(),
-        Layout::Prim { value } => value.scale.clone(),
+        Layout::Hor { items } => items.scale,
+        Layout::Ver { items } => items.scale,
+        Layout::Prim { value } => value.scale,
     }
     .unwrap_or(Float(1.0))
 }
@@ -264,59 +274,70 @@ fn apply_rects_over_widget(
     WidgetRect {
         item: apply_rects(rects, &items.item),
         style: items.style.clone(),
-        rect: root.clone(),
+        rect: *root,
     }
 }
 
-fn apply_rects(rects: &Vec<Rect>, items: &Vec<Ui>) -> Vec<UiRect> {
+fn apply_rects(rects: &Vec<Rect>, items: &[Ui]) -> Vec<UiRect> {
     items
         .iter()
         .zip(rects)
-        .map(|(item, rect)| set_widget_rect_layout(rect, item))
+        .map(|(item, rect)| get_ui_rect(rect, item))
         .collect()
-}
-
-fn set_widget_rect_layout(rect: &Rect, widget: &Ui) -> UiRect {
-    match widget {
-        Layout::Hor { items } => {
-            let rec = set_widget_rect(rect, items);
-            LayoutRect::Hor {
-                items: WidgetRect {
-                    item: rec
-                        .item
-                        .iter()
-                        .map(|x| get_ui_rect(rect, x))
-                        .collect::<Vec<UiRect>>(),
-                    style: rec.style.clone(),
-                    rect: rec.rect.clone(),
-                },
-            }
-        }
-
-        Layout::Ver { items } => {
-            let rec = set_widget_rect(rect, items);
-            LayoutRect::Ver {
-                items: WidgetRect {
-                    item: rec
-                        .item
-                        .iter()
-                        .map(|x| get_ui_rect(rect, x))
-                        .collect::<Vec<UiRect>>(),
-                    style: rec.style.clone(),
-                    rect: rec.rect.clone(),
-                },
-            }
-        }
-        Layout::Prim { value } => LayoutRect::Prim {
-            value: prim_rect(rect, value),
-        },
-    }
 }
 
 fn set_widget_rect<T: Clone>(rect: &Rect, widget: &Widget<T>) -> WidgetRect<T> {
     WidgetRect {
         item: widget.item.clone(),
         style: widget.style.clone(),
-        rect: rect.clone(),
+        rect: *rect,
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct UiState {
+    pub channels: HashMap<Channel, f32>,
+    pub prims: Vec<WidgetRect<PrimUi>>,
+}
+
+pub fn get_ui_state(ui: &UiRect) -> UiState {
+    let mut res = UiState::default();
+    collect_channel_inits(&mut res, ui);
+    res
+}
+
+pub fn collect_channel_inits(res: &mut UiState, ui: &UiRect) {
+    match ui {
+        LayoutRect::Hor { items } => items
+            .item
+            .iter()
+            .for_each(|x| collect_channel_inits(res, x)),
+        LayoutRect::Ver { items } => items
+            .item
+            .iter()
+            .for_each(|x| collect_channel_inits(res, x)),
+        LayoutRect::Prim { value } => {
+            res.prims.push(value.clone());
+            get_prim_ui_channels(&value.item).iter().for_each(|chan| {
+                res.channels.insert(chan.clone(), 0.0);
+            })
+        }
+    }
+}
+
+pub fn get_prim_ui_name(ui: &PrimUi) -> Option<String> {
+    get_prim_ui_channels(ui).first().map(|x| x.clone().0)
+}
+
+pub fn get_prim_ui_channels(ui: &PrimUi) -> Vec<Channel> {
+    match ui {
+        PrimUi::Knob { channel } => vec![channel.clone()],
+        PrimUi::Slider { channel } => vec![channel.clone()],
+        PrimUi::Label { text: _, size: _ } => vec![],
+        PrimUi::Button { channel, text: _ } => vec![channel.clone()],
+        PrimUi::Toggle { channel, text: _ } => vec![channel.clone()],
+        PrimUi::Select { channel, text: _ } => vec![channel.clone()],
+        PrimUi::Space => vec![],
+        PrimUi::Image { file: _ } => vec![],
     }
 }

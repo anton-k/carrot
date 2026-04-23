@@ -1,12 +1,145 @@
 mod ui;
+use crate::ui::parse::parse_config;
+use crate::ui::types::{
+    Channel, PrimUi, Rect, UiConfig, WidgetRect, get_prim_ui_name, get_root_rect, get_ui_rect,
+    get_ui_state,
+};
+use eframe::egui;
+use egui_knob::{Knob, KnobStyle, LabelPosition};
+use std::collections::HashMap;
 use std::env;
 use std::fs;
-/*
-use crate::ui::parse::parse_config;
+
+struct CarrotApp {
+    pub channels: HashMap<Channel, f32>,
+    pub prims: Vec<WidgetRect<PrimUi>>,
+}
+
+impl CarrotApp {
+    fn new(config: &UiConfig) -> Self {
+        let ui_with_rect = get_ui_rect(&Rect::unit(), &config.ui);
+        println!("{:#?}", &ui_with_rect);
+        let ui_state = get_ui_state(&ui_with_rect);
+        Self {
+            channels: ui_state.channels,
+            prims: ui_state.prims,
+        }
+    }
+
+    fn get_channel_ref(&mut self, channel: &Channel) -> Option<&mut f32> {
+        self.channels.get_mut(channel)
+    }
+}
+
+fn scale_by_size(rect: &mut egui::Rect, size: &egui::Vec2) {
+    rect.min = scale_pos(&rect.min, size);
+    rect.max = scale_pos(&rect.max, size);
+}
+
+fn scale_pos(pos: &egui::Pos2, size: &egui::Vec2) -> egui::Pos2 {
+    egui::Pos2 {
+        x: pos.x * size.x,
+        y: pos.y * size.y,
+    }
+}
+
+impl eframe::App for CarrotApp {
+    fn ui(&mut self, ctx: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ctx, |ui| {
+            ui.set_width(ui.available_width());
+            ui.set_height(ui.available_height());
+
+            let channels = &mut self.channels;
+            // report a bug: why available size is 16 units smaller?
+            let size = ui.available_size() + egui::Vec2::new(16.0, 16.0);
+            self.prims.iter().for_each(|prim| {
+                add_widget(channels, ui, &size, &prim.rect, &prim.item);
+            });
+        });
+    }
+}
+
+fn add_widget(
+    channels: &mut HashMap<Channel, f32>,
+    ui: &mut egui::Ui,
+    size: &egui::Vec2,
+    widget_rect: &Rect,
+    prim: &PrimUi,
+) {
+    let mut rect = egui::Rect::from(*widget_rect);
+    scale_by_size(&mut rect, size);
+
+    match prim {
+        PrimUi::Space => {}
+
+        PrimUi::Button { channel, text } => {
+            add_button(ui, &rect, &get_button_name(&channel, &text))
+        }
+        PrimUi::Knob { channel } => add_knob(channels, ui, &rect, channel, &channel.0),
+        PrimUi::Slider { channel } => add_button(ui, &rect, &channel.0),
+        PrimUi::Toggle { channel, text: _ } => add_button(ui, &rect, &channel.0),
+        PrimUi::Select { channel, text: _ } => add_button(ui, &rect, &channel.0),
+        PrimUi::Label { text, size: _ } => add_button(ui, &rect, &text),
+        PrimUi::Image { file } => add_button(ui, &rect, &file),
+    }
+}
+
+fn get_button_name(channel: &Channel, text: &str) -> String {
+    if text.is_empty() {
+        channel.0.clone()
+    } else {
+        text.to_string()
+    }
+}
+
+fn add_button(ui: &mut egui::Ui, rect: &egui::Rect, text: &str) {
+    let response = ui.put(*rect, egui::Button::new(text));
+    if response.clicked() {
+        println!("Clicked!");
+    }
+}
+
+fn add_knob(
+    channels: &mut HashMap<Channel, f32>,
+    ui: &mut egui::Ui,
+    rect: &egui::Rect,
+    channel: &Channel,
+    _text: &str,
+) {
+    let knob = Knob::new(
+        channels.get_mut(channel).unwrap(),
+        0.0,
+        1.0,
+        KnobStyle::Wiper,
+    )
+    .with_size(50.0)
+    .with_font_size(14.0)
+    .with_colors(
+        egui::Color32::GRAY,
+        egui::Color32::WHITE,
+        egui::Color32::WHITE,
+    )
+    .with_stroke_width(3.0)
+    // .with_label(text, LabelPosition::Top)
+    ;
+
+    let response = ui.put(*rect, knob);
+    if response.clicked() {
+        println!("Clicked!");
+    };
+}
+
+impl From<Rect> for egui::Rect {
+    fn from(value: Rect) -> Self {
+        egui::Rect::from_min_size(
+            egui::pos2(value.x.0, value.y.0),
+            egui::vec2(value.width.0, value.height.0),
+        )
+    }
+}
 
 fn read_config_file() -> Result<String, String> {
     let args: Vec<String> = env::args().collect();
-    println!("{:?}", args);
     if args.len() < 2 {
         Err("Error: Should have at least one argument for config file".to_string())
     } else {
@@ -15,14 +148,31 @@ fn read_config_file() -> Result<String, String> {
     }
 }
 
-fn main() {
+fn main() -> eframe::Result<()> {
     match read_config_file() {
-        Ok(file) => println!("{:#?}", parse_config(&file)),
-        Err(msg) => println!("{:#?}", msg),
+        Ok(file) => {
+            let config = parse_config(&file).expect("Failed to parse config");
+            let size = [config.config.size.width.0, config.config.size.height.0];
+
+            let options = eframe::NativeOptions {
+                viewport: egui::ViewportBuilder::default().with_inner_size(size),
+                ..Default::default()
+            };
+
+            eframe::run_native(
+                "Carrot",
+                options,
+                Box::new(|_cc| Ok(Box::new(CarrotApp::new(&config)))),
+            )
+        }
+        Err(msg) => {
+            println!("Error: {:#?}", msg);
+            panic!("Failed to parse congih")
+        }
     }
 }
-*/
 
+/*
 use eframe::egui;
 use egui_knob::{Knob, KnobStyle, LabelPosition};
 
@@ -64,7 +214,7 @@ fn main() {
     )
     .unwrap();
 }
-
+*/
 /*
 use eframe::egui; // Import necessary parts of eframe and egui
 

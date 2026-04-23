@@ -41,7 +41,6 @@ impl TryFrom<Value> for UiConfig {
         let config = parse_field_or_default("config", &map, "UI config");
         let state = parse_field_or_default("state", &map, "UI config");
         let ui = parse_field("ui", &map, "UI config")?;
-        println!("{:#?}", &map);
         let csound = parse_field_or_default("csound", &map, "UI config");
         Ok(UiConfig {
             config,
@@ -141,7 +140,7 @@ impl TryFrom<Value> for Ui {
         } else if has_key(&map, "ver") {
             let values = value.get_str("ver").unwrap();
             let item = parse_ui_items(values)?;
-            Ok(Layout::Hor {
+            Ok(Layout::Ver {
                 items: Widget { item, scale, style },
             })
         } else {
