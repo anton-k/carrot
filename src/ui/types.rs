@@ -354,7 +354,7 @@ pub fn get_prim_ui_name(ui: &PrimUi) -> Option<String> {
         .map(|x| x.get_channel().clone().0)
 }
 
-enum ChannelByType {
+pub enum ChannelByType {
     FloatChannel(Channel),
     BoolChannel(Channel),
 }
