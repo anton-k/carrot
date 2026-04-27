@@ -564,6 +564,7 @@ dependencies = [
  "egui",
  "egui_knob",
  "hashlink",
+ "quick-xml 0.39.2",
  "yaml-rust2",
 ]
 

@@ -4,7 +4,7 @@ build:
 	cargo build
 
 run:
-	cargo run --release -- examples/config/toggle.yaml
+	cargo run --release -- examples/config/gain.csd
 
 test:
 	cargo test
