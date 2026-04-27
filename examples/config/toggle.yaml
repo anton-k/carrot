@@ -15,9 +15,12 @@ state:
 ui:
   ver:
     - slider: foo
+    - slider: baz
+    - slider: qux
     - hor:
         - button: on
         - button: off
+        - toggle: on2
           scale: 2
     - space: []
       scale: 0.5
@@ -27,3 +30,5 @@ ui:
         - knob: sdf
         - knob: on2
         - knob: off2
+csound:
+  read: [sdf]

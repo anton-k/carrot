@@ -232,7 +232,7 @@ fn parse_select_items(value: &Value) -> Result<Vec<String>, Error> {
 fn parse_toggle(value: &Value) -> Result<PrimUi, Error> {
     let channel = parse_channel(value, "toggle")?;
     let text = get_text(value);
-    Ok(PrimUi::Button { channel, text })
+    Ok(PrimUi::Toggle { channel, text })
 }
 
 fn parse_label(value: &Value) -> Result<PrimUi, Error> {

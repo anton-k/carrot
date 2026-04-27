@@ -296,8 +296,24 @@ fn set_widget_rect<T: Clone>(rect: &Rect, widget: &Widget<T>) -> WidgetRect<T> {
 
 #[derive(Debug, Clone, Default)]
 pub struct UiState {
-    pub channels: HashMap<Channel, f32>,
+    pub channels: ChannelMap,
     pub prims: Vec<WidgetRect<PrimUi>>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ChannelMap {
+    pub floats: HashMap<Channel, f32>,
+    pub bools: HashMap<Channel, bool>,
+}
+
+impl ChannelMap {
+    pub fn get_mut_float(&mut self, channel: &Channel) -> &mut f32 {
+        self.floats.get_mut(channel).unwrap()
+    }
+
+    pub fn get_mut_bool(&mut self, channel: &Channel) -> &mut bool {
+        self.bools.get_mut(channel).unwrap()
+    }
 }
 
 pub fn get_ui_state(ui: &UiRect) -> UiState {
@@ -318,25 +334,49 @@ pub fn collect_channel_inits(res: &mut UiState, ui: &UiRect) {
             .for_each(|x| collect_channel_inits(res, x)),
         LayoutRect::Prim { value } => {
             res.prims.push(value.clone());
-            get_prim_ui_channels(&value.item).iter().for_each(|chan| {
-                res.channels.insert(chan.clone(), 0.0);
-            })
+            get_prim_ui_channels(&value.item)
+                .iter()
+                .for_each(|chan_by_type| match chan_by_type {
+                    ChannelByType::FloatChannel(chan) => {
+                        res.channels.floats.insert(chan.clone(), 0.0);
+                    }
+                    ChannelByType::BoolChannel(chan) => {
+                        res.channels.bools.insert(chan.clone(), false);
+                    }
+                })
         }
     }
 }
 
 pub fn get_prim_ui_name(ui: &PrimUi) -> Option<String> {
-    get_prim_ui_channels(ui).first().map(|x| x.clone().0)
+    get_prim_ui_channels(ui)
+        .first()
+        .map(|x| x.get_channel().clone().0)
 }
 
-pub fn get_prim_ui_channels(ui: &PrimUi) -> Vec<Channel> {
+enum ChannelByType {
+    FloatChannel(Channel),
+    BoolChannel(Channel),
+}
+
+impl ChannelByType {
+    pub fn get_channel(&self) -> Channel {
+        match self {
+            ChannelByType::FloatChannel(chan) => chan,
+            ChannelByType::BoolChannel(chan) => chan,
+        }
+        .clone()
+    }
+}
+
+pub fn get_prim_ui_channels(ui: &PrimUi) -> Vec<ChannelByType> {
     match ui {
-        PrimUi::Knob { channel } => vec![channel.clone()],
-        PrimUi::Slider { channel } => vec![channel.clone()],
+        PrimUi::Knob { channel } => vec![ChannelByType::FloatChannel(channel.clone())],
+        PrimUi::Slider { channel } => vec![ChannelByType::FloatChannel(channel.clone())],
         PrimUi::Label { text: _, size: _ } => vec![],
-        PrimUi::Button { channel, text: _ } => vec![channel.clone()],
-        PrimUi::Toggle { channel, text: _ } => vec![channel.clone()],
-        PrimUi::Select { channel, text: _ } => vec![channel.clone()],
+        PrimUi::Button { channel, text: _ } => vec![ChannelByType::BoolChannel(channel.clone())],
+        PrimUi::Toggle { channel, text: _ } => vec![ChannelByType::BoolChannel(channel.clone())],
+        PrimUi::Select { channel, text: _ } => vec![ChannelByType::FloatChannel(channel.clone())],
         PrimUi::Space => vec![],
         PrimUi::Image { file: _ } => vec![],
     }
