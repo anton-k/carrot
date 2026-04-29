@@ -2,22 +2,10 @@ pub mod parse;
 use crate::ui::types::{
     Channel, ChannelMap, PrimUi, Rect, UiConfig, WidgetRect, get_ui_rect, get_ui_state,
 };
-use csound::Csound;
-use eframe::egui;
 use egui_knob::{Knob, KnobStyle};
 
 pub mod types;
 use crate::audio::control::{ControlChannel, ControlMessage, Update};
-
-pub trait ReadChannel {
-    fn read_channel(&self, _channel: &Channel) -> f32;
-}
-
-impl ReadChannel for Csound {
-    fn read_channel(&self, _channel: &Channel) -> f32 {
-        0.5 // TODO        
-    }
-}
 
 pub struct CarrotApp {
     pub channels: ChannelMap,
@@ -52,14 +40,16 @@ impl CarrotApp {
 
     pub fn read_csound_channels(&mut self) {
         let channels = &mut self.channels;
-        self.control.on_recv(|msg| apply_updates(channels, &msg));
+        self.control.on_recv(|msg| apply_updates(channels, msg));
     }
 }
 
 fn apply_updates(channels: &mut ChannelMap, msg: &ControlMessage) {
-    msg.update.iter().for_each(|update| {
-        write_channel(channels, &update.channel, update.value as f32);
-    })
+    if let ControlMessage::Updates { updates } = msg {
+        updates.iter().for_each(|update| {
+            write_channel(channels, &update.channel, update.value as f32);
+        });
+    }
 }
 
 fn write_channel(channels: &mut ChannelMap, chan: &Channel, value: f32) {
@@ -86,8 +76,8 @@ fn apply_update(
     match chan_update.value {
         UpdateValue::Float { value, post_update } => {
             println!("Update float: {:?}: {:?}", chan_update.channel, value);
-            control.send(ControlMessage {
-                update: vec![Update {
+            control.send(ControlMessage::Updates {
+                updates: vec![Update {
                     channel: chan_update.channel.clone(),
                     value: value as f64,
                 }],
@@ -188,6 +178,10 @@ impl eframe::App for CarrotApp {
             });
             self.apply_updates();
         });
+    }
+
+    fn on_exit(&mut self) {
+        self.control.send(ControlMessage::ExitAudio);
     }
 }
 

@@ -5,9 +5,10 @@ use tokio_bichannel::channel;
 
 static CONTROL_CHANNEL_MESSAGE_SIZE: usize = 20;
 
-#[derive(Debug, Clone, Default)]
-pub struct ControlMessage {
-    pub update: Vec<Update>,
+#[derive(Debug, Clone)]
+pub enum ControlMessage {
+    Updates { updates: Vec<Update> },
+    ExitAudio,
 }
 
 #[derive(Debug, Clone)]

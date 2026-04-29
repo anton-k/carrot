@@ -34,15 +34,16 @@ impl Audio {
 
             csound.perform_ksmps();
             send_init_control_channels(&control_channels, &csound, &mut control);
+            let mut should_run = ShouldRun::default();
 
-            while !csound.perform_ksmps() {
+            while !csound.perform_ksmps() && should_run.0 {
                 control.on_recv(|msg| {
-                    react_on_control_message(&csound, msg);
+                    should_run = react_on_control_message(&csound, msg);
                 });
 
                 let update = get_read_updates(&mut prev_channels_to_read, &csound);
                 if !update.is_empty() {
-                    control.send(ControlMessage { update });
+                    control.send(ControlMessage::Updates { updates: update });
                 }
             }
         });
@@ -59,8 +60,8 @@ fn send_init_control_channels(channels: &[Channel], csound: &Csound, control: &m
             })
         })
         .collect();
-    control.send(ControlMessage {
-        update: updates.clone(),
+    control.send(ControlMessage::Updates {
+        updates: updates.clone(),
     })
 }
 
@@ -92,9 +93,23 @@ fn update_channel(csound: &Csound, update: &Update) {
     };
 }
 
-fn react_on_control_message(csound: &Csound, msg: &ControlMessage) {
+struct ShouldRun(bool);
+
+impl Default for ShouldRun {
+    fn default() -> Self {
+        ShouldRun(true)
+    }
+}
+
+fn react_on_control_message(csound: &Csound, msg: &ControlMessage) -> ShouldRun {
     println!("UI to Csound update: {:?}", msg);
-    msg.update.iter().for_each(|update| {
-        update_channel(csound, update);
-    });
+    match msg {
+        ControlMessage::Updates { updates } => {
+            updates.iter().for_each(|update| {
+                update_channel(csound, update);
+            });
+            ShouldRun(true)
+        }
+        ControlMessage::ExitAudio => ShouldRun(false),
+    }
 }
