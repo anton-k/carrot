@@ -7,7 +7,7 @@ use eframe::egui;
 use egui_knob::{Knob, KnobStyle};
 
 pub mod types;
-use std::sync::{Arc, Mutex};
+use crate::audio::control::{ControlChannel, ControlMessage, Update};
 
 pub trait ReadChannel {
     fn read_channel(&self, _channel: &Channel) -> f32;
@@ -24,11 +24,11 @@ pub struct CarrotApp {
     channels_to_update: Vec<ChannelUpdate>,
     pub channels_to_read: Vec<Channel>,
     pub prims: Vec<WidgetRect<PrimUi>>,
-    pub csound: Arc<Mutex<Csound>>,
+    pub control: ControlChannel,
 }
 
 impl CarrotApp {
-    pub fn new(config: &UiConfig, csound: Arc<Mutex<Csound>>) -> Self {
+    pub fn new(config: &UiConfig, control: ControlChannel) -> Self {
         let ui_with_rect = get_ui_rect(&Rect::unit(), &config.ui);
         println!("{:#?}", &ui_with_rect);
         let ui_state = get_ui_state(&ui_with_rect);
@@ -37,26 +37,31 @@ impl CarrotApp {
             channels_to_update: Vec::new(),
             channels_to_read: config.csound.read.clone(),
             prims: ui_state.prims,
-            csound,
+            control,
         }
     }
 
     pub fn apply_updates(&mut self) {
         let mut post_updates = Vec::new();
+        let control = &mut self.control;
         while !self.channels_to_update.is_empty() {
             if let Some(chan_update) = self.channels_to_update.pop() {
-                apply_update(&chan_update, &mut post_updates);
+                apply_update(&chan_update, &mut post_updates, control);
             }
         }
         self.channels_to_update = post_updates;
     }
 
     pub fn read_csound_channels(&mut self) {
-        self.channels_to_read.iter().for_each(|chan| {
-            let read_guard = self.csound.lock().unwrap();
-            write_channel(&mut self.channels, chan, read_guard.read_channel(chan));
-        });
+        let channels = &mut self.channels;
+        self.control.on_recv(|msg| apply_updates(channels, &msg));
     }
+}
+
+fn apply_updates(channels: &mut ChannelMap, msg: &ControlMessage) {
+    msg.update.iter().for_each(|update| {
+        write_channel(channels, &update.channel, update.value);
+    })
 }
 
 fn write_channel(channels: &mut ChannelMap, chan: &Channel, value: f32) {
@@ -75,10 +80,20 @@ fn csound_float_to_bool(value: f32) -> bool {
     value.abs() > f32::EPSILON
 }
 
-fn apply_update(chan_update: &ChannelUpdate, post_updates: &mut Vec<ChannelUpdate>) {
+fn apply_update(
+    chan_update: &ChannelUpdate,
+    post_updates: &mut Vec<ChannelUpdate>,
+    control: &mut ControlChannel,
+) {
     match chan_update.value {
         UpdateValue::Float { value, post_update } => {
             println!("Update float: {:?}: {:?}", chan_update.channel, value);
+            control.send(ControlMessage {
+                update: vec![Update {
+                    channel: chan_update.channel.clone(),
+                    value,
+                }],
+            });
             post_update.iter().for_each(|post_val| {
                 post_updates.push(ChannelUpdate::update_float(&chan_update.channel, *post_val))
             });

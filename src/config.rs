@@ -1,4 +1,3 @@
-use csound::Csound;
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 use std::env;
@@ -6,7 +5,7 @@ use std::fs;
 
 pub struct ConfigFileContent {
     pub yaml: String,
-    pub csd: Csound,
+    pub csd: String,
 }
 
 pub fn read_config_file() -> Result<ConfigFileContent, String> {
@@ -34,18 +33,20 @@ fn is_csd(file: &str) -> bool {
 }
 
 fn read_from_yaml(file_path: &str) -> Result<ConfigFileContent, String> {
-    let csound = Csound::new().expect("Failed to create Csound instance");
     let yaml = fs::read_to_string(file_path).map_err(|err| err.to_string())?;
-    Ok(ConfigFileContent { yaml, csd: csound })
+    Ok(ConfigFileContent {
+        yaml,
+        csd: String::default(),
+    })
 }
 
 fn read_from_csd(file_path: &String) -> Result<ConfigFileContent, String> {
     let csd = fs::read_to_string(file_path).map_err(|err| err.to_string())?;
     let yaml = read_xml_tag_content("Carrot", &csd)?;
-    let csound = Csound::new().expect("Failed to create Csound instance");
-    csound.compile_csd(file_path, 0, 1).unwrap();
-    csound.start().expect("Failed to run csound");
-    Ok(ConfigFileContent { yaml, csd: csound })
+    Ok(ConfigFileContent {
+        yaml,
+        csd: file_path.clone(),
+    })
 }
 
 fn read_xml_tag_content(tag: &str, xml: &str) -> Result<String, String> {

@@ -35,7 +35,7 @@ endin
 <CsScore>
 
 f0 100000
-i 1  0 4 1
+i 1  0 40 1
 i 2  0 -1
 e
 </CsScore>

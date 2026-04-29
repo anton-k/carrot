@@ -1,12 +1,14 @@
+mod audio;
 mod config;
 mod ui;
+use crate::audio::control::audio_control_channel;
+use crate::audio::csound::Audio;
 use crate::config::read_config_file;
 use crate::ui::CarrotApp;
 use crate::ui::parse::parse_config;
 
-use std::sync::{Arc, Mutex};
-
-fn main() -> eframe::Result<()> {
+#[tokio::main]
+async fn main() -> eframe::Result<()> {
     match read_config_file() {
         Ok(file_content) => {
             let config = parse_config(&file_content.yaml).expect("Failed to parse config");
@@ -16,17 +18,13 @@ fn main() -> eframe::Result<()> {
                 viewport: egui::ViewportBuilder::default().with_inner_size(size),
                 ..Default::default()
             };
-
-            let csd = Arc::new(Mutex::new(file_content.csd));
-            let csd_perf = Arc::clone(&csd);
-            std::thread::spawn(move || while !csd_perf.lock().unwrap().perform_ksmps() {});
-
-            let csd_ui = Arc::clone(&csd);
+            let (ui_chan, csd_chan) = audio_control_channel();
+            Audio::run(file_content.csd, csd_chan);
 
             eframe::run_native(
                 "Carrot",
                 options,
-                Box::new(|_cc| Ok(Box::new(CarrotApp::new(&config, csd_ui)))),
+                Box::new(|_cc| Ok(Box::new(CarrotApp::new(&config, ui_chan)))),
             )
         }
         Err(msg) => {
