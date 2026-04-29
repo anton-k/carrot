@@ -2,7 +2,7 @@ mod audio;
 mod config;
 mod ui;
 use crate::audio::control::audio_control_channel;
-use crate::audio::csound::Audio;
+use crate::audio::csound::{Audio, ReadChannelMap};
 use crate::config::read_config_file;
 use crate::ui::CarrotApp;
 use crate::ui::parse::parse_config;
@@ -19,13 +19,15 @@ async fn main() -> eframe::Result<()> {
                 ..Default::default()
             };
             let (ui_chan, csd_chan) = audio_control_channel();
-            Audio::run(file_content.csd, csd_chan);
+            let app = CarrotApp::new(&config, ui_chan);
+            Audio::run(
+                file_content.csd,
+                csd_chan,
+                ReadChannelMap::new(&config.csound.read),
+                app.channels.get_all_channels().clone(),
+            );
 
-            eframe::run_native(
-                "Carrot",
-                options,
-                Box::new(|_cc| Ok(Box::new(CarrotApp::new(&config, ui_chan)))),
-            )
+            eframe::run_native("Carrot", options, Box::new(|_cc| Ok(Box::new(app))))
         }
         Err(msg) => {
             println!("Error: {:#?}", msg);

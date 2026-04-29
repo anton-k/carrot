@@ -22,7 +22,6 @@ impl ReadChannel for Csound {
 pub struct CarrotApp {
     pub channels: ChannelMap,
     channels_to_update: Vec<ChannelUpdate>,
-    pub channels_to_read: Vec<Channel>,
     pub prims: Vec<WidgetRect<PrimUi>>,
     pub control: ControlChannel,
 }
@@ -35,7 +34,6 @@ impl CarrotApp {
         Self {
             channels: ui_state.channels,
             channels_to_update: Vec::new(),
-            channels_to_read: config.csound.read.clone(),
             prims: ui_state.prims,
             control,
         }
@@ -60,7 +58,7 @@ impl CarrotApp {
 
 fn apply_updates(channels: &mut ChannelMap, msg: &ControlMessage) {
     msg.update.iter().for_each(|update| {
-        write_channel(channels, &update.channel, update.value);
+        write_channel(channels, &update.channel, update.value as f32);
     })
 }
 
@@ -91,7 +89,7 @@ fn apply_update(
             control.send(ControlMessage {
                 update: vec![Update {
                     channel: chan_update.channel.clone(),
-                    value,
+                    value: value as f64,
                 }],
             });
             post_update.iter().for_each(|post_val| {

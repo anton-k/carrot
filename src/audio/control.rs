@@ -13,7 +13,7 @@ pub struct ControlMessage {
 #[derive(Debug, Clone)]
 pub struct Update {
     pub channel: Channel,
-    pub value: f32,
+    pub value: f64,
 }
 
 pub struct ControlChannel(pub tokio_bichannel::Channel<ControlMessage, ControlMessage>);

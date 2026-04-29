@@ -314,6 +314,12 @@ impl ChannelMap {
     pub fn get_mut_bool(&mut self, channel: &Channel) -> &mut bool {
         self.bools.get_mut(channel).unwrap()
     }
+
+    pub fn get_all_channels(&self) -> Vec<Channel> {
+        let mut res: Vec<Channel> = self.floats.keys().cloned().collect();
+        res.extend(self.bools.keys().cloned().collect::<Vec<Channel>>());
+        res
+    }
 }
 
 pub fn get_ui_state(ui: &UiRect) -> UiState {

@@ -19,6 +19,7 @@ kamp = .6
 kcps = 220
 
 kgain chnget "gain"
+kgain portk kgain, 0.05
 asig oscil (kgain * kamp), kcps
      out asig, asig
 
