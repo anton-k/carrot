@@ -1,5 +1,6 @@
 <CsoundSynthesizer>
 <CsOptions>
+-odac
 </CsOptions>
 
 <CsInstruments>
@@ -9,7 +10,8 @@ ksmps = 64
 nchnls = 2
 0dbfs  = 1
 
-chn_k "gain", 1
+chn_k "gain", 1, 2, 0.6, 0, 1
+chnset 0.6, "gain"
 
 instr 1
 
@@ -18,7 +20,7 @@ kcps = 220
 
 kgain chnget "gain"
 asig oscil (kgain * kamp), kcps
-     outs asig, asig
+     out asig, asig
 
 endin
 
@@ -46,7 +48,7 @@ config:
     height: 300
 state:
   init:
-    gain!: 0.5
+    gain: 0.5
     showGain: 0.0
 ui:
   hor:

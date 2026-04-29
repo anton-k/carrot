@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+csound = { path =  "/home/anton/dev/tools/csound-rs" }
 eframe = "0.34.1"
 egui = "0.34.1"
 egui_knob = "0.3.11"

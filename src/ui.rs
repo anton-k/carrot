@@ -2,18 +2,19 @@ pub mod parse;
 use crate::ui::types::{
     Channel, ChannelMap, PrimUi, Rect, UiConfig, WidgetRect, get_ui_rect, get_ui_state,
 };
+use csound::Csound;
 use eframe::egui;
 use egui_knob::{Knob, KnobStyle};
 
 pub mod types;
+use std::sync::{Arc, Mutex};
 
-#[derive(Default)]
-pub struct Csound {
-    _empty: bool,
+pub trait ReadChannel {
+    fn read_channel(&self, _channel: &Channel) -> f32;
 }
 
-impl Csound {
-    pub fn read_channel(&self, _channel: &Channel) -> f32 {
+impl ReadChannel for Csound {
+    fn read_channel(&self, _channel: &Channel) -> f32 {
         0.5 // TODO        
     }
 }
@@ -23,11 +24,11 @@ pub struct CarrotApp {
     channels_to_update: Vec<ChannelUpdate>,
     pub channels_to_read: Vec<Channel>,
     pub prims: Vec<WidgetRect<PrimUi>>,
-    pub csound: Csound,
+    pub csound: Arc<Mutex<Csound>>,
 }
 
 impl CarrotApp {
-    pub fn new(config: &UiConfig) -> Self {
+    pub fn new(config: &UiConfig, csound: Arc<Mutex<Csound>>) -> Self {
         let ui_with_rect = get_ui_rect(&Rect::unit(), &config.ui);
         println!("{:#?}", &ui_with_rect);
         let ui_state = get_ui_state(&ui_with_rect);
@@ -36,7 +37,7 @@ impl CarrotApp {
             channels_to_update: Vec::new(),
             channels_to_read: config.csound.read.clone(),
             prims: ui_state.prims,
-            csound: Csound::default(),
+            csound,
         }
     }
 
@@ -52,7 +53,8 @@ impl CarrotApp {
 
     pub fn read_csound_channels(&mut self) {
         self.channels_to_read.iter().for_each(|chan| {
-            write_channel(&mut self.channels, chan, self.csound.read_channel(chan));
+            let read_guard = self.csound.lock().unwrap();
+            write_channel(&mut self.channels, chan, read_guard.read_channel(chan));
         });
     }
 }
